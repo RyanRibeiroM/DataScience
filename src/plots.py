@@ -4,7 +4,7 @@ import pandas as pd
 
 sns.set_theme(style="darkgrid")
 
-def plot_principais_acidentes(df, coluna_causa="causa_acidente", coluna_mortos="mortos", top_n=5, titulo="Top Causas de Acidentes por Vítmas Fatais"):
+def plot_principais_acidentes(df, coluna_causa="causa_acidente", coluna_mortos="mortos", top_n=5, titulo="Top Causas de Acidentes por Vítimas Fatais"):
     mortos_por_causa = (
         df.groupby(coluna_causa)[coluna_mortos].sum().reset_index().sort_values(coluna_mortos, ascending=False).head(top_n)
     )
@@ -53,7 +53,7 @@ def plot_por_uf(df, coluna_uf="uf", top_n=10, titulo="Top 10 UFs com maiores reg
     plt.tight_layout()
     plt.show()
     
-def plot_tendencias(df, coluna_data="data_inversa", coluna_mes="mes_acidente", titulo="Tendência Mensal de Acidentes", periodo="Jan-Jul 2025"):
+def plot_tendencias(df, coluna_data="data_inversa", coluna_mes="mes_acidente", titulo="Tendência Mensal de Acidentes", periodo="Jan-Ago 2025"):
     
     if "mes_acidente" not in df.columns:
         if coluna_data not in df.columns:
