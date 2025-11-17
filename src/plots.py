@@ -151,7 +151,6 @@ def plot_mortes_por_dia_e_tipo(df, coluna_tipo="tipo_acidente", coluna_mortos="m
         df["tipo_dia"] = df["dia_semana"].apply(
             lambda d: "Fim de Semana" if d in ["sábado", "domingo"] else "Dia de Semana"
         )
-        print("⚙️  Coluna 'tipo_dia' criada automaticamente.")
 
     top_tipos = df.groupby('tipo_acidente')['mortos'].sum().nlargest(top_n).index
     df_top = df[df['tipo_acidente'].isin(top_tipos)]
