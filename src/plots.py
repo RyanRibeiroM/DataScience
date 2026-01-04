@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import seaborn as sns 
 import pandas as pd
+import math
+from sklearn.metrics import confusion_matrix, classification_report
 
 sns.set_theme(style="darkgrid")
 
@@ -176,4 +178,154 @@ def plot_mortes_por_dia_e_tipo(df, coluna_tipo="tipo_acidente", coluna_mortos="m
     g.set_axis_labels("Total de Vítimas Fatais", "Tipo de Acidente")
     g.set_titles("Grupo: {col_name}")
     plt.tight_layout()
+    plt.show()
+
+def plot_model_performance(y_true, y_pred, labels, title="Performance do Modelo"):
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    ax_cm = axes[0]
+    matrix = confusion_matrix(y_true, y_pred)
+
+    im = ax_cm.imshow(matrix, cmap='PuBu')
+
+    ax_cm.set_xticks([0, 1])
+    ax_cm.set_yticks([0, 1])
+
+    l0 = labels[0] if len(labels) > 0 else '0'
+    l1 = labels[1] if len(labels) > 1 else '1'
+    
+    ax_cm.set_xticklabels([f"{l0} (0)", f"{l1} (1)"], fontsize=12)
+    ax_cm.set_yticklabels([f"{l0} (0)", f"{l1} (1)"], fontsize=12)
+    
+    ax_cm.set_xlabel("Predito", fontsize=13, fontweight='bold')
+    ax_cm.set_ylabel("Real", fontsize=13, fontweight='bold')
+    ax_cm.set_title("Matriz de Confusão", fontsize=15, pad=20, fontweight='bold')
+    
+    ax_cm.grid(False)
+
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            cor_texto = "white" if matrix[i, j] > matrix.max() / 2 else "black"
+            ax_cm.text(j, i, matrix[i, j], ha="center", va="center", 
+                       color=cor_texto, fontsize=14, fontweight='bold')
+            
+    plt.colorbar(im, ax=ax_cm, fraction=0.046, pad=0.04)
+
+    ax_cr = axes[1]
+    report_dict = classification_report(y_true, y_pred, output_dict=True)
+    
+    df_report = pd.DataFrame(report_dict).transpose()
+
+    accuracy = report_dict.get('accuracy', 0)
+
+    if 'accuracy' in df_report.index:
+        df_report = df_report.drop('accuracy')
+    
+    metrics_df = df_report.iloc[:, :-1]
+    
+    sns.heatmap(metrics_df, annot=True, cmap='PuBu', fmt='.2f', 
+                vmin=0, vmax=1, cbar=True, ax=ax_cr)
+    
+    ax_cr.set_title(f"Relatório de Classificação\nAcurácia Global: {accuracy:.2%}", 
+                    fontsize=14, fontweight='bold', pad=20)
+    ax_cr.set_yticks(range(len(metrics_df)), metrics_df.index, rotation=0)
+
+    plt.suptitle(title, fontsize=18, fontweight='bold', y=1.05)
+    plt.tight_layout()
+    plt.show()
+
+def plot_grid_performance(grid, metric_label="F1-Score (Macro)"):
+    results = pd.DataFrame(grid.cv_results_)
+    
+    results['Estratégia'] = results['param_sampler'].apply(
+        lambda x: str(x).split('(')[0] if x is not None else 'Original (Sem Sampler)'
+    )
+
+    param_cols = [c for c in results.columns if c.startswith('param_clf__') and results[c].nunique() > 1]
+    
+    best_idx = results['mean_test_score'].idxmax()
+    best_score = results.loc[best_idx, 'mean_test_score']
+    best_std = results.loc[best_idx, 'std_test_score']
+    best_strategy = results.loc[best_idx, 'Estratégia']
+    best_params = grid.best_params_
+
+    params_str = " | ".join([f"{k.replace('clf__', '').replace('param_', '')}: {v}" for k, v in best_params.items()])
+
+    plt.figure(figsize=(12, 2.5))
+    plt.axis('off')
+
+    plt.text(0.5, 0.75, f"Melhor Resultado: {best_score:.4f}", 
+             fontsize=22, fontweight='bold', color='#2c3e50', ha='center', va='center')
+    
+    plt.text(0.5, 0.55, f"(Margem de erro / Aura: ±{best_std:.4f})", 
+             fontsize=12, color='#7f8c8d', ha='center', va='center')
+
+    plt.text(0.5, 0.35, f"Estratégia: {best_strategy}", 
+             fontsize=14, fontweight='bold', color='#2980b9', ha='center', va='center')
+    
+    plt.text(0.5, 0.15, f"Parâmetros: {params_str}", 
+             fontsize=11, family='monospace', color='#333333', ha='center', va='center',
+             bbox=dict(facecolor='#f0f0f0', edgecolor='none', boxstyle='round,pad=0.5'))
+
+    plt.tight_layout()
+    plt.show()
+
+    n_params = len(param_cols)
+    if n_params == 0: return
+
+    n_cols = 2
+    n_rows = math.ceil(n_params / n_cols)
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 5 * n_rows), sharey=True)
+    axes_flat = axes.flatten()
+
+    sns.set_theme(style="whitegrid", palette="viridis")
+
+    for i, param in enumerate(param_cols):
+        ax = axes_flat[i]
+        eixo_x_nome = param.replace("param_clf__", "").title()
+
+        if isinstance(results[param].iloc[0], tuple):
+            results[param] = results[param].astype(str)
+            
+        sns.lineplot(
+            data=results, x=param, y='mean_test_score',
+            hue='Estratégia', style='Estratégia',
+            markers=True, dashes=False, linewidth=2.5, markersize=9,
+            ax=ax, legend=(i == 0) 
+        )
+        
+        best_x_global = results.loc[best_idx, param]
+        best_y_global = results.loc[best_idx, 'mean_test_score']
+        
+        if isinstance(best_x_global, tuple):
+             best_x_global = str(best_x_global)
+
+        ax.scatter(best_x_global, best_y_global, s=200, facecolors='none', edgecolors='red', linewidth=2, zorder=5)
+
+        if any(x in param for x in ['C', 'alpha', 'gamma', 'learning_rate']):
+            try:
+                ax.set_xscale('log')
+            except:
+                pass
+            
+        ax.set_title(f"Impacto de {eixo_x_nome}", fontsize=14, fontweight='bold')
+        ax.set_xlabel(eixo_x_nome, fontsize=12)
+        
+        if i % n_cols == 0:
+            ax.set_ylabel(metric_label, fontsize=12)
+        else:
+            ax.set_ylabel("")
+
+    for j in range(i + 1, len(axes_flat)):
+        fig.delaxes(axes_flat[j])
+
+    if n_params > 0:
+        handles, labels = axes_flat[0].get_legend_handles_labels()
+        if handles:
+            axes_flat[0].get_legend().remove()
+            fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 0.92), ncol=3, title="Estratégia")
+
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.85)
     plt.show()

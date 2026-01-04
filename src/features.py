@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 def Add_new_columns(data):
     """
@@ -34,3 +35,17 @@ def Add_new_columns(data):
     )
 
     return data
+
+def prepare_modeling_data_heart_failure(df):
+    feature_cols = ['age', 'anaemia', 'creatinine_phosphokinase', 'diabetes',
+        'ejection_fraction', 'high_blood_pressure', 'platelets',
+        'serum_creatinine', 'serum_sodium', 'sex', 'smoking', 'time']
+    target_col = 'DEATH_EVENT'
+
+    X = df[feature_cols].copy()
+    Y = df[target_col]
+
+    numerical_features = ['age','creatinine_phosphokinase','ejection_fraction', 'platelets','serum_creatinine', 'serum_sodium', 'time']
+    X[numerical_features] = StandardScaler().fit_transform(X[numerical_features])
+
+    return X, Y
